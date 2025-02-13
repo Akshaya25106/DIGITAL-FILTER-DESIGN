@@ -1,0 +1,106 @@
+module fir_filter (
+    input clk,                      // Clock signal
+    input rst,                      // Reset signal
+    input signed [7:0] x_in,        // 8-bit signed input signal
+    output reg signed [15:0] y_out  // 16-bit signed output signal
+);
+
+
+parameter N = 4;
+
+
+reg signed [7:0] h [0:N-1]; // 8-bit signed coefficients
+initial begin
+    h[0] = 8'd1;  // Example coefficient values
+    h[1] = 8'd2;
+    h[2] = 8'd3;
+    h[3] = 8'd4;
+end
+
+
+reg signed [7:0] x [0:N-1];  // 8-bit signed input delay line
+integer i;
+
+
+always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        // Reset all values
+        for (i = 0; i < N; i = i + 1)
+            x[i] <= 8'd0;
+        y_out <= 16'd0;
+    end else begin
+        
+        for (i = N-1; i > 0; i = i - 1) begin
+            x[i] <= x[i-1];
+        end
+        x[0] <= x_in;
+
+       
+        y_out <= (h[0] * x[0]) + 
+                 (h[1] * x[1]) + 
+                 (h[2] * x[2]) + 
+                 (h[3] * x[3]);
+    end
+end
+
+endmodule
+
+
+`timescale 1ns / 1ps
+
+module fir_filter_tb;
+    reg clk, rst;
+    reg signed [7:0] x_in;       // 8-bit signed input
+    wire signed [15:0] y_out;    // 16-bit signed output
+
+    
+    fir_filter uut (
+        .clk(clk),
+        .rst(rst),
+        .x_in(x_in),
+        .y_out(y_out)
+    );
+
+    
+    always #5 clk = ~clk;
+
+    
+    initial begin
+        $display("Time (ns) | x_in  | y_out");
+        $monitor("%t        | %d    | %d", $time, x_in, y_out);
+    end
+
+    initial begin
+        
+        clk = 0;
+        rst = 1;
+        x_in = 0;
+
+       
+        #10 rst = 0;
+
+        // Input Sequence (Example: Step & Ramp)
+        #10 x_in = 8'd10;
+        #10 x_in = 8'd20;
+        #10 x_in = 8'd30;
+        #10 x_in = 8'd40;
+        #10 x_in = 8'd50;
+        #10 x_in = 8'd60;
+        #10 x_in = 8'd70;
+        #10 x_in = 8'd80;
+        #10 x_in = 8'd90;
+        #10 x_in = 8'd100;
+        #10 x_in = 8'd0;  
+
+        // Additional samples to observe filter response
+        #10 x_in = -8'd20;
+        #10 x_in = -8'd40;
+        #10 x_in = -8'd60;
+        #10 x_in = -8'd80;
+        #10 x_in = -8'd100;
+        #10 x_in = 8'd0;  
+
+        // Wait to observe results, then stop simulation
+        #50 $stop;
+    end
+endmodule
